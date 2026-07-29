@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>투두 리스트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-8 px-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- 제목 -->
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2 text-center">📝 투두 리스트</h1>
+            <p class="text-center text-gray-600 mb-8">오늘 할 일을 기록하고 관리하세요</p>
+
+            <!-- 입력 영역 -->
+            <div class="flex gap-2 mb-6">
+                <input
+                    id="todoInput"
+                    type="text"
+                    placeholder="새로운 할 일을 입력하세요..."
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    autocomplete="off"
+                >
+                <button
+                    id="addBtn"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200"
+                >
+                    추가
+                </button>
+            </div>
+
+            <!-- 통계 -->
+            <div class="grid grid-cols-2 gap-4 mb-6 text-center">
+                <div class="bg-blue-50 rounded-lg p-3">
+                    <p class="text-2xl font-bold text-blue-600" id="totalCount">0</p>
+                    <p class="text-sm text-gray-600">전체</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-3">
+                    <p class="text-2xl font-bold text-green-600" id="completeCount">0</p>
+                    <p class="text-sm text-gray-600">완료</p>
+                </div>
+            </div>
+
+            <!-- 투두 목록 -->
+            <ul id="todoList" class="space-y-2">
+                <!-- 동적으로 생성됨 -->
+            </ul>
+
+            <!-- 빈 상태 메시지 -->
+            <div id="emptyMessage" class="text-center py-8 text-gray-400">
+                <p class="text-lg">할 일을 추가해보세요! 🚀</p>
+            </div>
+
+            <!-- 초기화 버튼 -->
+            <button
+                id="clearBtn"
+                class="w-full mt-8 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg font-semibold transition-colors duration-200"
+            >
+                완료된 항목 삭제
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // DOM 요소 선택
+        const todoInput = document.getElementById('todoInput');
+        const addBtn = document.getElementById('addBtn');
+        const todoList = document.getElementById('todoList');
+        const emptyMessage = document.getElementById('emptyMessage');
+        const totalCount = document.getElementById('totalCount');
+        const completeCount = document.getElementById('completeCount');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // 투두 데이터 (로컬 스토리지에서 로드)
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+        // 페이지 로드 시 투두 렌더링
+        function renderTodos() {
+            todoList.innerHTML = '';
+
+            todos.forEach((todo, index) => {
+                const li = document.createElement('li');
+                li.className = `flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-150 ${
+                    todo.completed ? 'opacity-60' : ''
+                }`;
+
+                li.innerHTML = `
+                    <input
+                        type="checkbox"
+                        ${todo.completed ? 'checked' : ''}
+                        class="w-5 h-5 text-blue-500 rounded focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                        data-index="${index}"
+                    >
+                    <span class="flex-1 text-gray-800 ${todo.completed ? 'line-through text-gray-400' : ''}">
+                        ${escapeHtml(todo.text)}
+                    </span>
+                    <button
+                        class="text-red-500 hover:text-red-700 font-bold text-lg transition-colors duration-150"
+                        data-index="${index}"
+                    >
+                        ✕
+                    </button>
+                `;
+
+                // 체크박스 이벤트
+                li.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+                    todos[e.target.dataset.index].completed = e.target.checked;
+                    saveTodos();
+                    renderTodos();
+                });
+
+                // 삭제 버튼 이벤트
+                li.querySelector('button').addEventListener('click', (e) => {
+                    todos.splice(e.target.dataset.index, 1);
+                    saveTodos();
+                    renderTodos();
+                });
+
+                todoList.appendChild(li);
+            });
+
+            updateStats();
+            updateEmptyMessage();
+        }
+
+        // 통계 업데이트
+        function updateStats() {
+            totalCount.textContent = todos.length;
+            completeCount.textContent = todos.filter(todo => todo.completed).length;
+        }
+
+        // 빈 상태 메시지 업데이트
+        function updateEmptyMessage() {
+            emptyMessage.style.display = todos.length === 0 ? 'block' : 'none';
+        }
+
+        // 투두 추가
+        function addTodo() {
+            const text = todoInput.value.trim();
+
+            if (text === '') {
+                alert('할 일을 입력해주세요!');
+                return;
+            }
+
+            todos.push({ text, completed: false });
+            saveTodos();
+            todoInput.value = '';
+            todoInput.focus();
+            renderTodos();
+        }
+
+        // 로컬 스토리지에 저장
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        // HTML 이스케이프 (XSS 방지)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 이벤트 리스너
+        addBtn.addEventListener('click', addTodo);
+        todoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            todos = todos.filter(todo => !todo.completed);
+            saveTodos();
+            renderTodos();
+        });
+
+        // 초기 렌더링
+        renderTodos();
+    </script>
+</body>
+</html>
